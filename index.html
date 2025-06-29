@@ -13,37 +13,36 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
   <style>
-    /* Full-page map */
     #map {
       height: 100vh;
     }
 
-    /* Filter panel styling */
+    /* Filter panel container */
     #filterPanel {
       position: absolute;
       top: 10px;
       right: 10px;
       z-index: 1000;
       background: white;
-      padding: 10px 14px;
+      padding: 14px;
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.15);
       font-family: sans-serif;
       font-size: 14px;
-      max-width: 220px;
+      max-width: 240px;
     }
 
-    /* Label inside filter */
     #filterPanel label {
       display: block;
-      margin-bottom: 6px;
+      margin-top: 8px;
+      margin-bottom: 4px;
       font-weight: bold;
     }
 
-    /* Dropdown style */
-    #bookFilter {
+    #filterPanel select {
       width: 100%;
       padding: 6px;
+      margin-bottom: 8px;
       border: 1px solid #ccc;
       border-radius: 4px;
       font-size: 14px;
@@ -52,59 +51,63 @@
 </head>
 <body>
 
-<!-- Book filter panel on top-right -->
+<!-- Filter Panel with Book and Century -->
 <div id="filterPanel">
   <label for="bookFilter">Filter by Book:</label>
   <select id="bookFilter">
     <option value="All">All Books</option>
   </select>
+
+  <label for="centuryFilter">Filter by Century:</label>
+  <select id="centuryFilter">
+    <option value="All">All Centuries</option>
+  </select>
 </div>
 
-<!-- Main map container -->
+<!-- Map container -->
 <div id="map"></div>
 
 <script>
-  // Initialize map centered on Bangalore
   var map = L.map('map').setView([12.9716, 77.5946], 12);
 
-  // Add Carto Voyager base map
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors & Carto',
+    attribution: '&copy; OpenStreetMap & Carto',
     subdomains: 'abcd',
     maxZoom: 19
   }).addTo(map);
 
-  // Google Sheet CSV link (already published)
   const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSMhjxUtp_fmfpCVxvg96bTY_EYwVQw5nKFr01U5quGMlNyKYqHxAcuM8WyXOgrRZ46WuTJ-fZIVQ4_/pub?gid=0&single=true&output=csv';
 
-  const markers = [];         // Store all markers
-  const bookSet = new Set();  // Track unique book titles
+  const markers = [];
+  const bookSet = new Set();
+  const centurySet = new Set();
 
-  // Parse CSV data
   Papa.parse(sheetURL, {
     download: true,
     header: true,
     complete: function(results) {
       results.data.forEach(function(row) {
-        if (!row.LatLong) return;
+        if (!row.LatLong || !row.Year) return;
 
-        // Extract lat/lng from single column
         let parts = row.LatLong.split(',');
         if (parts.length !== 2) return;
         let lat = parseFloat(parts[0].trim());
         let lng = parseFloat(parts[1].trim());
         if (isNaN(lat) || isNaN(lng)) return;
 
-        // Create a lavender circle marker
+        // Compute century from year (ex: 1834 -> 1800s)
+        let year = parseInt(row.Year.trim());
+        if (isNaN(year)) return;
+        let century = Math.floor(year / 100) * 100 + "s";
+
         let marker = L.circleMarker([lat, lng], {
           radius: 8,
-          color: '#a78ac3',       // lavender border
-          fillColor: '#d6b3f7',   // soft lavender fill
+          color: '#a78ac3',
+          fillColor: '#d6b3f7',
           fillOpacity: 0.8,
           weight: 1
         });
 
-        // Popup with formatted content
         let popupContent = `
           <div style="font-size: 16px; font-weight: bold; color: #b33c00;">
             ${row.Year}
@@ -121,9 +124,12 @@
           <div style="font-size: 12px; font-style: italic; color: #555;">
             ${row["Reference Book"]}
           </div>
+          <br>
+          <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank" style="font-size: 13px; color: #0066cc;">
+            📍 View on Google Maps
+          </a>
         `;
 
-        // Bind popup and hover behavior
         marker.bindPopup(popupContent);
         marker.on('mouseover', function () {
           this.openPopup();
@@ -132,33 +138,55 @@
           this.closePopup();
         });
 
-        // Track book and marker
-        bookSet.add(row["Reference Book"]);
+        // Store metadata for filtering
         marker.book = row["Reference Book"];
+        marker.century = century;
+
+        bookSet.add(marker.book);
+        centurySet.add(century);
+
         marker.addTo(map);
         markers.push(marker);
       });
 
-      // Populate dropdown filter with book names
-      const filter = document.getElementById("bookFilter");
+      // Populate Book dropdown
+      const bookFilter = document.getElementById("bookFilter");
       bookSet.forEach(book => {
         let option = document.createElement("option");
         option.value = book;
         option.text = book;
-        filter.add(option);
+        bookFilter.add(option);
       });
 
-      // Show/hide markers based on selected book
-      filter.addEventListener("change", function() {
-        const selected = this.value;
+      // Populate Century dropdown
+      const centuryFilter = document.getElementById("centuryFilter");
+      Array.from(centurySet).sort().forEach(century => {
+        let option = document.createElement("option");
+        option.value = century;
+        option.text = century;
+        centuryFilter.add(option);
+      });
+
+      // Combined filter logic
+      function applyFilters() {
+        const selectedBook = bookFilter.value;
+        const selectedCentury = centuryFilter.value;
+
         markers.forEach(marker => {
-          if (selected === "All" || marker.book === selected) {
+          const matchesBook = (selectedBook === "All" || marker.book === selectedBook);
+          const matchesCentury = (selectedCentury === "All" || marker.century === selectedCentury);
+
+          if (matchesBook && matchesCentury) {
             marker.addTo(map);
           } else {
             map.removeLayer(marker);
           }
         });
-      });
+      }
+
+      // Run filtering when either dropdown changes
+      bookFilter.addEventListener("change", applyFilters);
+      centuryFilter.addEventListener("change", applyFilters);
     }
   });
 </script>
