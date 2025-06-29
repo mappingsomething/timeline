@@ -24,9 +24,11 @@
   // Initialize map (Bangalore default)
   var map = L.map('map').setView([12.9716, 77.5946], 12);
 
-  // Add OSM layer
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
+  // Use Carto Voyager pastel-style base map
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors & Carto',
+    subdomains: 'abcd',
+    maxZoom: 19
   }).addTo(map);
 
   // Your published Google Sheet CSV link
@@ -51,12 +53,33 @@
         var marker = L.marker([lat, lng]).addTo(map);
 
         var popupContent = `
-          <b>${row.Year} — ${row.Title}</b><br>
-          ${row.Description}<br>
-          <i>${row["Reference Book"]}</i>
-        `;
+  <div style="font-size: 16px; font-weight: bold; color: #b33c00;">
+    ${row.Year}
+  </div>
+  <div style="font-size: 14px; font-weight: normal; color: #000;">
+    ${row.Title}
+  </div>
+  <br>
+  <div style="font-size: 13px;">
+    ${row.Description}
+  </div>
+  <br>
+  <div style="font-size: 12px; font-style: italic; color: #555;">
+    ${row["Reference Book"]}
+  </div>
+`;
 
+
+        // Bind popup and show it on hover
         marker.bindPopup(popupContent);
+
+        marker.on('mouseover', function () {
+          this.openPopup();
+        });
+
+        marker.on('mouseout', function () {
+          this.closePopup();
+        });
       });
     }
   });
