@@ -137,6 +137,17 @@
         marker.on('mouseout', function () {
           this.closePopup();
         });
+          marker.on('click', function () {
+          infoPanel.innerHTML = `
+            <h2>${row.Year}</h2>
+            <h3>${row.Title}</h3>
+            <p>${row.Description}</p>
+            <p><em>${row["Reference Book"]}</em></p>
+            <p><a href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank">📍 View on Google Maps</a></p>
+          `;
+          infoPanel.style.display = 'block';
+        });
+
 
         // Store metadata for filtering
         marker.book = row["Reference Book"];
