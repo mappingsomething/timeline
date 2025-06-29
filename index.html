@@ -15,13 +15,18 @@
   <style>
     #map { height: 100vh; }
     #bookFilter {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 1000;
-      padding: 6px;
-      font-size: 14px;
-    }
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+  padding: 6px 10px;
+  font-size: 14px;
+  max-width: 200px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
   </style>
 </head>
 <body>
@@ -63,7 +68,13 @@
         let lng = parseFloat(parts[1].trim());
         if (isNaN(lat) || isNaN(lng)) return;
 
-        let marker = L.marker([lat, lng]);
+        let marker = L.circleMarker([lat, lng], {
+  radius: 8,
+  color: '#a78ac3',        // lavender outline
+  fillColor: '#d6b3f7',    // soft lavender fill
+  fillOpacity: 0.8,
+  weight: 1
+});
 
         let popupContent = `
           <div style="font-size: 16px; font-weight: bold; color: #b33c00;">
