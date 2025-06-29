@@ -14,9 +14,21 @@
 
   <style>
     #map { height: 100vh; }
+    #bookFilter {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      padding: 6px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
+
+<select id="bookFilter">
+  <option value="All">All Books</option>
+</select>
 
 <div id="map"></div>
 
@@ -34,6 +46,9 @@
   // Your published Google Sheet CSV link
   const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSMhjxUtp_fmfpCVxvg96bTY_EYwVQw5nKFr01U5quGMlNyKYqHxAcuM8WyXOgrRZ46WuTJ-fZIVQ4_/pub?gid=0&single=true&output=csv';
 
+  const markers = [];
+  const bookSet = new Set(); // To auto-populate filter
+
   Papa.parse(sheetURL, {
     download: true,
     header: true,
@@ -41,36 +56,33 @@
       results.data.forEach(function(row) {
         if (!row.LatLong) return;
 
-        // Split LatLong column
         let parts = row.LatLong.split(',');
         if (parts.length !== 2) return;
 
         let lat = parseFloat(parts[0].trim());
         let lng = parseFloat(parts[1].trim());
-
         if (isNaN(lat) || isNaN(lng)) return;
 
-        var marker = L.marker([lat, lng]).addTo(map);
+        let marker = L.marker([lat, lng]);
 
-        var popupContent = `
-  <div style="font-size: 16px; font-weight: bold; color: #b33c00;">
-    ${row.Year}
-  </div>
-  <div style="font-size: 14px; font-weight: normal; color: #000;">
-    ${row.Title}
-  </div>
-  <br>
-  <div style="font-size: 13px;">
-    ${row.Description}
-  </div>
-  <br>
-  <div style="font-size: 12px; font-style: italic; color: #555;">
-    ${row["Reference Book"]}
-  </div>
-`;
+        let popupContent = `
+          <div style="font-size: 16px; font-weight: bold; color: #b33c00;">
+            ${row.Year}
+          </div>
+          <br>
+          <div style="font-size: 14px; font-weight: bold; color: #000;">
+            ${row.Title}
+          </div>
+          <br>
+          <div style="font-size: 13px;">
+            ${row.Description}
+          </div>
+          <br>
+          <div style="font-size: 12px; font-style: italic; color: #555;">
+            ${row["Reference Book"]}
+          </div>
+        `;
 
-
-        // Bind popup and show it on hover
         marker.bindPopup(popupContent);
 
         marker.on('mouseover', function () {
@@ -79,6 +91,33 @@
 
         marker.on('mouseout', function () {
           this.closePopup();
+        });
+
+        // Track book and marker
+        bookSet.add(row["Reference Book"]);
+        marker.book = row["Reference Book"];
+        marker.addTo(map);
+        markers.push(marker);
+      });
+
+      // Populate dropdown
+      const filter = document.getElementById("bookFilter");
+      bookSet.forEach(book => {
+        let option = document.createElement("option");
+        option.value = book;
+        option.text = book;
+        filter.add(option);
+      });
+
+      // Add filter logic
+      filter.addEventListener("change", function() {
+        const selected = this.value;
+        markers.forEach(marker => {
+          if (selected === "All" || marker.book === selected) {
+            marker.addTo(map);
+          } else {
+            map.removeLayer(marker);
+          }
         });
       });
     }
