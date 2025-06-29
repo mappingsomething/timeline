@@ -13,47 +13,74 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
   <style>
-    #map { height: 100vh; }
+    /* Full-page map */
+    #map {
+      height: 100vh;
+    }
+
+    /* Filter panel styling */
+    #filterPanel {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: white;
+      padding: 10px 14px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      font-family: sans-serif;
+      font-size: 14px;
+      max-width: 220px;
+    }
+
+    /* Label inside filter */
+    #filterPanel label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    /* Dropdown style */
     #bookFilter {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 1000;
-  padding: 6px 10px;
-  font-size: 14px;
-  max-width: 200px;
-  background: white;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-}
+      width: 100%;
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
 
-<select id="bookFilter">
-  <option value="All">All Books</option>
-</select>
+<!-- Book filter panel on top-right -->
+<div id="filterPanel">
+  <label for="bookFilter">Filter by Book:</label>
+  <select id="bookFilter">
+    <option value="All">All Books</option>
+  </select>
+</div>
 
+<!-- Main map container -->
 <div id="map"></div>
 
 <script>
-  // Initialize map (Bangalore default)
+  // Initialize map centered on Bangalore
   var map = L.map('map').setView([12.9716, 77.5946], 12);
 
-  // Use Carto Voyager pastel-style base map
+  // Add Carto Voyager base map
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors & Carto',
     subdomains: 'abcd',
     maxZoom: 19
   }).addTo(map);
 
-  // Your published Google Sheet CSV link
+  // Google Sheet CSV link (already published)
   const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSMhjxUtp_fmfpCVxvg96bTY_EYwVQw5nKFr01U5quGMlNyKYqHxAcuM8WyXOgrRZ46WuTJ-fZIVQ4_/pub?gid=0&single=true&output=csv';
 
-  const markers = [];
-  const bookSet = new Set(); // To auto-populate filter
+  const markers = [];         // Store all markers
+  const bookSet = new Set();  // Track unique book titles
 
+  // Parse CSV data
   Papa.parse(sheetURL, {
     download: true,
     header: true,
@@ -61,21 +88,23 @@
       results.data.forEach(function(row) {
         if (!row.LatLong) return;
 
+        // Extract lat/lng from single column
         let parts = row.LatLong.split(',');
         if (parts.length !== 2) return;
-
         let lat = parseFloat(parts[0].trim());
         let lng = parseFloat(parts[1].trim());
         if (isNaN(lat) || isNaN(lng)) return;
 
+        // Create a lavender circle marker
         let marker = L.circleMarker([lat, lng], {
-  radius: 8,
-  color: '#a78ac3',        // lavender outline
-  fillColor: '#d6b3f7',    // soft lavender fill
-  fillOpacity: 0.8,
-  weight: 1
-});
+          radius: 8,
+          color: '#a78ac3',       // lavender border
+          fillColor: '#d6b3f7',   // soft lavender fill
+          fillOpacity: 0.8,
+          weight: 1
+        });
 
+        // Popup with formatted content
         let popupContent = `
           <div style="font-size: 16px; font-weight: bold; color: #b33c00;">
             ${row.Year}
@@ -94,12 +123,11 @@
           </div>
         `;
 
+        // Bind popup and hover behavior
         marker.bindPopup(popupContent);
-
         marker.on('mouseover', function () {
           this.openPopup();
         });
-
         marker.on('mouseout', function () {
           this.closePopup();
         });
@@ -111,7 +139,7 @@
         markers.push(marker);
       });
 
-      // Populate dropdown
+      // Populate dropdown filter with book names
       const filter = document.getElementById("bookFilter");
       bookSet.forEach(book => {
         let option = document.createElement("option");
@@ -120,7 +148,7 @@
         filter.add(option);
       });
 
-      // Add filter logic
+      // Show/hide markers based on selected book
       filter.addEventListener("change", function() {
         const selected = this.value;
         markers.forEach(marker => {
